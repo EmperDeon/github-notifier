@@ -87,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
       for repo in &repo_list {
         match fetch_latest_release(repo).await {
           Ok(release) => {
-            log::info!("Found release: {:?}", release);
+            log::debug!("Found release: {:?}", release);
             let important = !search.is_empty() && search_r.is_match(&release.body);
 
             if !state.sent_releases.get(repo.to_owned()).unwrap_or(&0).eq(&release.id) {
@@ -192,7 +192,7 @@ async fn send_notification(
 ) {
   let client = reqwest::Client::new();
   let text = format!(
-                "{}New release <a href=\"{}\">{}</a> in <b>{}</b> at {}\n\n<pre><code class=\"language-markdown\">{:.3900}</code></pre>",
+                "{} New release <a href=\"{}\">{}</a> in <b>{}</b> at {}\n\n<pre><code class=\"language-markdown\">{:.3900}</code></pre>",
                 if important { "🐅" } else { "🦦" },
                 release.html_url,
                 release.name,
@@ -207,7 +207,7 @@ async fn send_notification(
     ("disable_notification", (!important).to_string()),
   ];
 
-  if let Err(err) = client
+  match client
     .post(format!(
       "https://api.telegram.org/bot{}/sendMessage",
       telegram_token.clone()
@@ -216,6 +216,11 @@ async fn send_notification(
     .send()
     .await
   {
-    log::error!("Failed to send notification: {:?}", err);
+    Ok(_) => {
+      log::info!("Sent notification");
+    }
+    Err(err) => {
+      log::error!("Failed to send notification: {:?}", err);
+    }
   }
 }
